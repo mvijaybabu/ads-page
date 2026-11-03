@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<!-- No network at all: only Telegram's script may load, and the page can't send data anywhere. The data is in the
+     link after #R (from the bot), which a browser never sends to the web host. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://telegram.org 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Ads</title>
+<!-- Telegram's script would otherwise reuse an earlier launch's parameters. Must come before the script. -->
+<script>try { sessionStorage.removeItem("__telegram__initParams") } catch (e) {}</script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root {
+  --fb-bg: #f3f4f7; --fb-card: #fff; --fb-text: #0f172a; --fb-hint: #5b6475; --fb-accent: #1f6fd1; --fb-accent-text: #fff;
+  --fb-line: rgba(15, 23, 42, .1); --fb-soft: #eaf2fc; --fb-warn: #b25e09;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --fb-bg: #0f1115; --fb-card: #1a1d23; --fb-text: #e8eaf0; --fb-hint: #9aa3b2; --fb-accent: #5aa2ff; --fb-accent-text: #0b1220;
+          --fb-line: rgba(255, 255, 255, .1); --fb-soft: rgba(90, 162, 255, .16); --fb-warn: #f0a050; }
+}
+:root {
+  --bg: var(--tg-theme-secondary-bg-color, var(--fb-bg));
+  --card: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, var(--fb-card)));
+  --text: var(--tg-theme-text-color, var(--fb-text));
+  --hint: var(--tg-theme-hint-color, var(--fb-hint));
+  --accent: var(--tg-theme-button-color, var(--fb-accent));
+  --accent-text: var(--tg-theme-button-text-color, var(--fb-accent-text));
+  --line: var(--tg-theme-section-separator-color, var(--fb-line));
+  --soft: var(--fb-soft);
+  --warn: var(--fb-warn);
+}
+@supports (color: color-mix(in srgb, red 10%, blue)) {
+  :root { --soft: color-mix(in srgb, var(--accent) 14%, transparent); }
+}
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+#app { max-width: 680px; margin: 0 auto; padding: 10px 12px 96px; }
+.hint { color: var(--hint); font-size: 13px; }
+.warn { color: var(--warn); }
+.card { background: var(--card); border-radius: 14px; }
+
+/* the top: what the link holds and when it was read */
+.top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 2px 4px 10px; }
+.top b { font-size: 15px; }
+
+/* the search card: one box, one Filters button */
+.search { display: flex; gap: 8px; padding: 8px; }
+.find { flex: 1 1 200px; min-width: 0; height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--bg); outline: none; font-size: 16px; }
+.find:focus { box-shadow: 0 0 0 2px var(--accent) inset; }
+.fbtn { flex: 0 1 auto; min-width: 0; max-width: 60%; height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+        border: 1px solid var(--line); border-radius: 10px; background: var(--card); white-space: nowrap; }
+.fbtn .k { font-weight: 650; color: var(--accent); flex: none; }
+.fbtn .v { overflow: hidden; text-overflow: ellipsis; min-width: 0; color: var(--hint); font-size: 14px; }
+@media (max-width: 479px) {
+  .search { flex-direction: column; }
+  .find, .fbtn { flex: none; max-width: none; }
+}
+
+/* the results bar: counts and Sort by */
+.resbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 4px 8px; flex-wrap: wrap; }
+.resbar .n { font-weight: 600; }
+.sort { display: flex; gap: 2px; background: var(--card); border-radius: 10px; padding: 3px; }
+.sort button { border: 0; background: transparent; border-radius: 8px; padding: 6px 10px; font-size: 14px; font-weight: 600; color: var(--hint); }
+.sort button.on { background: var(--soft); color: var(--accent); }
+
+/* the client list */
+.rows { list-style: none; margin: 0; padding: 0; }
+.row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 12px; border: 0; background: none; text-align: left; }
+.rows li + li .row { border-top: 1px solid var(--line); }
+.row-main { flex: 1; min-width: 0; }
+.name { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sub { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 3px; font-size: 12.5px; color: var(--hint); }
+.tag { background: var(--soft); color: var(--accent); border-radius: 6px; padding: 0 6px; }
+.count { flex: none; min-width: 30px; text-align: center; padding: 2px 8px; border-radius: 99px; background: var(--soft); color: var(--accent); font-weight: 700; font-size: 13.5px; }
+.chev { flex: none; color: var(--hint); font-size: 20px; line-height: 1; }
+.empty { padding: 24px 16px; text-align: center; }
+.empty button { margin-top: 10px; }
+.more { display: block; width: 100%; padding: 12px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--accent); font-weight: 600; }
+
+/* a client's ads */
+.back { border: 0; background: none; color: var(--accent); font-weight: 600; padding: 6px 4px; }
+.chead { padding: 14px 14px 12px; margin-bottom: 12px; }
+.chead h2 { margin: 0; font-size: 18px; line-height: 1.3; }
+.chead .sub { font-size: 13px; margin-top: 6px; }
+.day { margin: 14px 4px 6px; font-size: 13px; font-weight: 650; color: var(--hint); text-transform: uppercase; letter-spacing: .02em; }
+.ad { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.ad + .ad { border-top: 1px solid var(--line); }
+.ad > div { flex: 1; min-width: 0; }
+.ad .what { font-weight: 600; }
+.ad .where { font-size: 13px; color: var(--hint); margin-top: 2px; }
+.sendbar { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid var(--line); }
+.sendbar .primary { display: block; width: 100%; max-width: 656px; margin: 0 auto; }
+
+.primary { height: 46px; padding: 0 22px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-text); font-weight: 650; }
+.primary:disabled { opacity: .45; cursor: default; }
+.secondary { height: 40px; padding: 0 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-weight: 600; }
+.link { border: 0; background: none; color: var(--accent); font-weight: 600; font-size: 13px; padding: 2px 4px; }
+
+/* the Filters sheet: every filter as a plain tick list, applied together */
+.scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .38); z-index: 20; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; top: 6vh; z-index: 21; display: flex; flex-direction: column;
+         max-width: 680px; margin: 0 auto; background: var(--bg); border-radius: 16px 16px 0 0; overflow: hidden; }
+.shead { display: flex; align-items: center; justify-content: space-between; padding: 12px 8px 8px 16px; }
+.shead h2 { margin: 0; font-size: 18px; }
+.x { width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: var(--hint); font-size: 24px; line-height: 1; }
+.sbody { flex: 1; overflow: auto; padding: 0 12px 12px; }
+.fsec { margin-bottom: 12px; }
+.fsec-h { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 4px 6px; }
+.fsec-h h3 { margin: 0; font-size: 13px; font-weight: 650; color: var(--hint); text-transform: uppercase; letter-spacing: .02em; }
+.tick { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 0; background: none; text-align: left; }
+.fsec .card .tick + .tick { border-top: 1px solid var(--line); }
+.box { flex: none; width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--line); display: grid; place-items: center; }
+.tick[aria-checked="true"] .box { background: var(--accent); border-color: var(--accent); }
+.tick[aria-checked="true"] .box::after { content: ""; width: 5px; height: 10px; border: solid var(--accent-text); border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.tick .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tick .n { color: var(--hint); font-size: 13px; }
+.sfoot { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px;
+         padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--card); }
+.sfoot .side { display: flex; align-items: center; min-width: 0; }
+.sfoot .side:last-child { justify-content: flex-end; text-align: right; font-size: 13px; }
+@media (min-width: 620px) {
+  .sheet { top: 4vh; bottom: 4vh; border-radius: 16px; }
+  .sbody { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; align-items: start; }
+}
+
+.toast { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 10px 14px;
+         border-radius: 10px; background: var(--text); color: var(--bg); font-size: 14px; z-index: 30; }
+</style>
+</head>
+<body>
+<div id="app"><p class="hint">Opening…</p></div>
+<div id="filters" hidden></div>
+<div class="toast" id="toast" hidden></div>
+<script>
+(function () {
+  "use strict"
+  const packed = location.hash.replace(/^#/, "").split(/[?&#]/)[0] // ours only; Telegram appends its own after it
+  const tg = window.Telegram && window.Telegram.WebApp
+  const inTelegram = Boolean(tg && tg.platform && tg.platform !== "unknown") // "unknown" in a normal browser
+  const atLeast = (v) => inTelegram && typeof tg.isVersionAtLeast === "function" && tg.isVersionAtLeast(v)
+  const nativeBack = atLeast("6.1")
+  const nativeMain = atLeast("6.1")
+  const app = document.getElementById("app")
+  const filtersBox = document.getElementById("filters")
+  const LIST_LIMIT = 150 // rows before "Show all", so a long list doesn't slow a phone
+
+  if (inTelegram) {
+    tg.ready()
+    tg.expand()
+    if (atLeast("7.7") && tg.disableVerticalSwipes) tg.disableVerticalSwipes() // scrolling up doesn't close it
+  }
+
+  // textContent only: names in the data can never inject HTML
+  function el(tag, cls, text) {
+    const e = document.createElement(tag)
+    if (cls) e.className = cls
+    if (text != null) e.textContent = text
+    return e
+  }
+  function button(cls, text, onClick) {
+    const b = el("button", cls, text)
+    b.type = "button"
+    b.onclick = onClick
+    return b
+  }
+  function fail(text) {
+    app.textContent = ""
+    app.appendChild(el("p", "warn", text))
+  }
+  function decode(b64) { // base64url -> zlib -> JSON
+    let s = b64.replace(/-/g, "+").replace(/_/g, "/")
+    while (s.length % 4) s += "="
+    const bin = atob(s)
+    const bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"))
+    return new Response(stream).text().then(JSON.parse)
+  }
+
+  // Dates: the link has the first day, and each ad the days after it
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  let D, DAYS // the data, and its days as Date objects
+  const dayOf = (i) => DAYS[i]
+  const short = (d) => `${d.getDate()} ${MONTHS[d.getMonth()]}`
+  const long = (d) => `${WEEKDAYS[d.getDay()]} ${short(d)}`
+  const plural = (n, word) => `${n.toLocaleString("en-IN")} ${word}${n === 1 ? "" : "s"}`
+  const list = (v) => (Array.isArray(v) ? v : [v])
+
+  // The filters: a Set of ticked indexes per kind; every one ticked = no filter on it
+  const KINDS = [
+    { key: "d", title: "Days" },
+    { key: "e", title: "Editions" },
+    { key: "p", title: "Position" },
+    { key: "t", title: "Ad type" },
+    { key: "g", title: "Category" },
+  ]
+  let ADS // [{ c, d: [], e: [], p: [], t, g, i }]
+  const options = (key) => (key === "d" ? DAYS.map((_, i) => i) : D[key].map((_, i) => i))
+  const labelOf = (key, i) => (key === "d" ? long(dayOf(i)) : key === "e" ? D.e[i][1] : D[key][i])
+  const everything = () => Object.fromEntries(KINDS.map((k) => [k.key, new Set(options(k.key))]))
+  const copy = (f) => Object.fromEntries(KINDS.map((k) => [k.key, new Set(f[k.key])]))
+  const matches = (ad, f, skip) =>
+    KINDS.every((k) => k.key === skip || (Array.isArray(ad[k.key]) ? ad[k.key].some((v) => f[k.key].has(v)) : f[k.key].has(ad[k.key])))
+
+  const state = { f: null, find: "", sort: { key: "name", dir: "asc" }, client: null, showAll: false, sheet: null, listScroll: 0 }
+  try { const s = JSON.parse(localStorage.getItem("ads.sort")); if (s && s.key) state.sort = s } catch (e) {}
+
+  const SORTS = {
+    name: { label: "Name", first: "asc" },
+    count: { label: "No. of ads", first: "desc" },
+    latest: { label: "Latest", first: "desc" },
+  }
+
+  // What the Filters button says: only what is narrowed, the rest in a word
+  function summary(f) {
+    const part = (key, all) => {
+      const ticked = options(key).filter((i) => f[key].has(i))
+      if (ticked.length === options(key).length) return all
+      const first = labelOf(key, ticked[0])
+      return ticked.length === 1 ? first : `${first} +${ticked.length - 1}`
+    }
+    const out = [part("d", plural(DAYS.length, "day")), part("e", "All editions"), part("p", "All positions"), part("t", D.scope)]
+    const g = part("g", "")
+    if (g) out.push(g)
+    return out.join(" · ")
+  }
+
+  // The clients with ads under the filters: [{ c, name, ads: [...], latest }], in the order chosen. Each ad gets
+  // day: its latest day within the Days ticked.
+  function clients() {
+    const by = new Map()
+    for (const ad of ADS) {
+      if (!matches(ad, state.f)) continue
+      let x = by.get(ad.c)
+      if (!x) by.set(ad.c, (x = { c: ad.c, name: D.c[ad.c], ads: [], latest: -1, eds: new Set() }))
+      const day = ad.d.find((d) => state.f.d.has(d))
+      x.ads.push({ ...ad, day })
+      x.latest = Math.max(x.latest, day)
+      ad.e.forEach((e) => x.eds.add(e))
+    }
+    const sign = state.sort.dir === "desc" ? -1 : 1
+    const value = { name: (x) => x.c, count: (x) => x.ads.length, latest: (x) => x.latest }[state.sort.key]
+    return [...by.values()].sort((a, b) => sign * (value(a) - value(b)) || a.c - b.c) // the bot sends clients A-Z
+  }
+
+  function render() {
+    app.textContent = ""
+    if (state.client === null) renderList()
+    else renderClient()
+    if (nativeMain && state.client === null) tg.MainButton.hide()
+    if (nativeBack) (state.client !== null || state.sheet ? tg.BackButton.show() : tg.BackButton.hide())
+  }
+
+  function renderTop() {
+    const top = el("div", "top")
+    const last = dayOf(DAYS.length - 1)
+    top.appendChild(el("b", null, DAYS.length > 1 ? `${short(dayOf(0))} – ${short(last)}` : long(last)))
+    if (D.at) {
+      const at = new Date(D.at)
+      top.appendChild(el("span", "hint", `as of ${short(at)}, ${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`))
+    }
+    app.appendChild(top)
+  }
+
+  function renderList() {
+    renderTop()
+    const search = el("div", "card search")
+    const find = el("input", "find")
+    find.type = "search"
+    find.placeholder = "Find a client"
+    find.setAttribute("aria-label", "Find a client")
+    find.value = state.find
+    find.oninput = () => { state.find = find.value; state.showAll = false; drawRows() }
+    search.appendChild(find)
+    const fb = button("fbtn", null, openFilters)
+    fb.appendChild(el("span", "k", "Filters"))
+    fb.appendChild(el("span", "v", summary(state.f)))
+    search.appendChild(fb)
+    app.appendChild(search)
+
+    const bar = el("div", "resbar")
+    const counts = el("span", "n")
+    bar.appendChild(counts)
+    const sort = el("div", "sort")
+    sort.setAttribute("role", "group")
+    sort.setAttribute("aria-label", "Sort clients")
+    for (const [key, s] of Object.entries(SORTS)) {
+      const on = state.sort.key === key
+      const b = button(on ? "on" : "", s.label + (on ? (state.sort.dir === "asc" ? " ↑" : " ↓") : ""), () => {
+        state.sort = { key, dir: on ? (state.sort.dir === "asc" ? "desc" : "asc") : s.first }
+        try { localStorage.setItem("ads.sort", JSON.stringify(state.sort)) } catch (e) {}
+        render()
+      })
+      sort.appendChild(b)
+    }
+    bar.appendChild(sort)
+    app.appendChild(bar)
+
+    const box = el("div", "card")
+    app.appendChild(box)
+    const all = clients()
+    function drawRows() {
+      box.textContent = ""
+      const needle = state.find.trim().toLowerCase()
+      const shown = needle ? all.filter((x) => x.name.toLowerCase().includes(needle)) : all
+      const ads = shown.reduce((n, x) => n + x.ads.length, 0)
+      counts.textContent = `${plural(shown.length, "client")} · ${plural(ads, "ad")}`
+      if (!all.length) {
+        const empty = el("div", "empty")
+        empty.appendChild(el("p", "hint", "No ads for these filters."))
+        empty.appendChild(button("secondary", "Show all", () => { state.f = everything(); render() }))
+        box.appendChild(empty)
+        return
+      }
+      if (!shown.length) {
+        box.appendChild(el("p", "empty hint", `No client matches “${state.find.trim()}”.`))
+        return
+      }
+      const ul = el("ul", "rows")
+      for (const x of state.showAll ? shown : shown.slice(0, LIST_LIMIT)) {
+        const li = el("li")
+        const row = button("row", null, () => openClient(x.c))
+        const main = el("span", "row-main")
+        main.appendChild(el("span", "name", x.name))
+        const sub = el("span", "sub")
+        sub.appendChild(el("span", null, `Last ${short(dayOf(x.latest))}`))
+        const eds = [...x.eds].sort((a, b) => a - b)
+        eds.slice(0, 3).forEach((e) => sub.appendChild(el("span", "tag", D.e[e][1])))
+        if (eds.length > 3) sub.appendChild(el("span", "tag", `+${eds.length - 3}`))
+        main.appendChild(sub)
+        row.appendChild(main)
+        const n = el("span", "count", String(x.ads.length))
+        n.setAttribute("aria-label", plural(x.ads.length, "ad"))
+        row.appendChild(n)
+        row.appendChild(el("span", "chev", "›"))
+        li.appendChild(row)
+        ul.appendChild(li)
+      }
+      box.appendChild(ul)
+      if (!state.showAll && shown.length > LIST_LIMIT) box.appendChild(button("more", `Show all ${shown.length} clients`, () => { state.showAll = true; drawRows() }))
+    }
+    drawRows()
+  }
+
+  function openClient(c) {
+    state.listScroll = window.scrollY
+    state.client = c
+    render()
+    window.scrollTo(0, 0)
+  }
+  function closeClient() {
+    state.client = null
+    render()
+    window.scrollTo(0, state.listScroll)
+  }
+
+  function renderClient() {
+    const x = clients().find((y) => y.c === state.client)
+    if (!x) { state.client = null; return render() }
+    if (!nativeBack) app.appendChild(button("back", "‹ All clients", closeClient))
+    const head = el("div", "card chead")
+    head.appendChild(el("h2", null, x.name))
+    const sub = el("div", "sub")
+    sub.appendChild(el("span", null, `${plural(x.ads.length, "ad")} · last ${long(dayOf(x.latest))}`))
+    head.appendChild(sub)
+    app.appendChild(head)
+
+    // newest day first, then in the bot's order (biggest first); an ad that ran on several days shows under its
+    // latest one ticked. With no images to tell them apart, ads that read the same are one line with their number.
+    let day = null
+    let box = null
+    let lines = null
+    for (const ad of [...x.ads].sort((a, b) => b.day - a.day)) {
+      if (ad.day !== day) {
+        day = ad.day
+        const n = x.ads.filter((a) => a.day === day).length
+        app.appendChild(el("div", "day", `${long(dayOf(day))} · ${plural(n, "ad")}`))
+        box = el("div", "card")
+        app.appendChild(box)
+        lines = new Map()
+      }
+      const what = `${ad.p.map((p) => D.p[p]).join(", ")} · ${D.t[ad.t]}`
+      const where = [ad.e.map((e) => D.e[e][1]).join(", "), D.g[ad.g]]
+      const also = ad.d.filter((d) => d !== ad.day)
+      if (also.length) where.push(`also ${also.map((d) => short(dayOf(d))).join(", ")}`)
+      const key = `${what}|${where.join("|")}`
+      const seen = lines.get(key)
+      if (seen) {
+        seen.n += 1
+        seen.count.textContent = `×${seen.n}`
+        seen.count.hidden = false
+        continue
+      }
+      const row = el("div", "ad")
+      const text = el("div")
+      text.appendChild(el("div", "what", what))
+      text.appendChild(el("div", "where", where.join(" · ")))
+      row.appendChild(text)
+      const count = el("span", "count", "×1")
+      count.hidden = true
+      row.appendChild(count)
+      lines.set(key, { n: 1, count })
+      box.appendChild(row)
+    }
+
+    const label = `Send ${plural(x.ads.length, "page")} to chat`
+    if (nativeMain) {
+      tg.MainButton.setText(label)
+      tg.MainButton.show()
+    } else {
+      const bar = el("div", "sendbar")
+      bar.appendChild(button("primary", label, () => sendToChat(x)))
+      app.appendChild(bar)
+    }
+  }
+
+  // Send to chat: the bot sends the client's pages (those shown, under these filters) to the person's chat. The page
+  // can't reach the bot or the image server itself, so it opens the bot's start link with a short key: this link's
+  // key, the client, and each filter's ticks as a base-36 bit mask ("" = all ticked); the bot finds them in what it
+  // put in the link (page_bot.py, START_KEY). Telegram then shows a Start button in the chat.
+  function startKey(x) {
+    const mask = (key) =>
+      state.f[key].size === options(key).length
+        ? ""
+        : options(key).reduce((m, i) => (state.f[key].has(i) ? m | (BigInt(1) << BigInt(i)) : m), BigInt(0)).toString(36)
+    return [D.k, x.c.toString(36), ...KINDS.map((k) => mask(k.key))].join("_")
+  }
+  function sendToChat(x) {
+    const key = startKey(x)
+    if (key.length > 64) return toast("Too many filters ticked to send these. Tick fewer, or All, and try again.")
+    if (!inTelegram) return toast(`In Telegram, the bot sends these ${plural(x.ads.length, "page")} to your chat.`)
+    tg.openTelegramLink(`https://t.me/${D.bot}?start=${key}`)
+    toast("Tap Start at the bottom of the chat to get them.")
+  }
+  function onMain() {
+    const x = clients().find((y) => y.c === state.client)
+    if (x) sendToChat(x)
+  }
+
+  let toastTimer
+  function toast(text) {
+    const t = document.getElementById("toast")
+    t.textContent = text
+    t.hidden = false
+    clearTimeout(toastTimer)
+    toastTimer = setTimeout(() => { t.hidden = true }, 3500)
+  }
+
+  // The Filters sheet: a draft of the filters, ticked freely; Apply filters makes it the filters, Back, Escape, × or a
+  // tap outside leaves them as they were
+  function openFilters() {
+    state.sheet = copy(state.f)
+    if (nativeMain) tg.MainButton.hide()
+    drawSheet()
+    filtersBox.hidden = false
+    document.body.style.overflow = "hidden"
+    if (nativeBack) tg.BackButton.show()
+  }
+  function closeFilters(apply) {
+    if (apply) {
+      state.f = state.sheet
+      state.showAll = false
+    }
+    state.sheet = null
+    filtersBox.hidden = true
+    filtersBox.textContent = ""
+    document.body.style.overflow = ""
+    render()
+  }
+  function problemOf(f) {
+    const missing = KINDS.filter((k) => !f[k.key].size).map((k) => k.title.toLowerCase())
+    return missing.length ? `Tick at least one ${missing.join(", ")}` : ""
+  }
+  function drawSheet() {
+    const f = state.sheet
+    const prev = filtersBox.querySelector(".sbody")
+    const top = prev ? prev.scrollTop : 0 // a tick redraws the sheet where it was
+    filtersBox.textContent = ""
+    filtersBox.appendChild(Object.assign(el("div", "scrim"), { onclick: () => closeFilters(false) }))
+    const sheet = el("div", "sheet")
+    sheet.setAttribute("role", "dialog")
+    sheet.setAttribute("aria-label", "Filters")
+    const head = el("div", "shead")
+    head.appendChild(el("h2", null, "Filters"))
+    const x = button("x", "×", () => closeFilters(false))
+    x.setAttribute("aria-label", "Close filters")
+    head.appendChild(x)
+    sheet.appendChild(head)
+
+    const body = el("div", "sbody")
+    for (const k of KINDS) {
+      // each option's ads under the other filters as ticked now
+      const n = new Map(options(k.key).map((i) => [i, 0]))
+      for (const ad of ADS) if (matches(ad, f, k.key)) for (const v of list(ad[k.key])) n.set(v, n.get(v) + 1)
+      const sec = el("div", "fsec")
+      const h = el("div", "fsec-h")
+      h.appendChild(el("h3", null, k.title))
+      const quick = el("span")
+      quick.appendChild(button("link", "All", () => { f[k.key] = new Set(options(k.key)); drawSheet() }))
+      quick.appendChild(button("link", "Clear", () => { f[k.key] = new Set(); drawSheet() }))
+      h.appendChild(quick)
+      sec.appendChild(h)
+      const box = el("div", "card")
+      for (const i of options(k.key)) {
+        const on = f[k.key].has(i)
+        const t = button("tick", null, () => { on ? f[k.key].delete(i) : f[k.key].add(i); drawSheet() })
+        t.setAttribute("role", "checkbox")
+        t.setAttribute("aria-checked", String(on))
+        t.appendChild(el("span", "box"))
+        t.appendChild(el("span", "lbl", labelOf(k.key, i)))
+        t.appendChild(el("span", "n", String(n.get(i))))
+        box.appendChild(t)
+      }
+      sec.appendChild(box)
+      body.appendChild(sec)
+    }
+    sheet.appendChild(body)
+
+    const problem = problemOf(f)
+    const foot = el("div", "sfoot")
+    const left = el("div", "side")
+    left.appendChild(button("link", "Reset", () => { state.sheet = everything(); drawSheet() }))
+    foot.appendChild(left)
+    const apply = button("primary", "Apply filters", () => closeFilters(true))
+    apply.disabled = Boolean(problem)
+    foot.appendChild(apply)
+    const right = el("div", "side")
+    if (problem) right.appendChild(el("span", "warn", problem))
+    foot.appendChild(right)
+    sheet.appendChild(foot)
+    filtersBox.appendChild(sheet)
+    body.scrollTop = top
+  }
+
+  function back() {
+    if (state.sheet) closeFilters(false)
+    else if (state.client !== null) {
+      if (nativeMain) tg.MainButton.hide()
+      closeClient()
+    }
+  }
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") back() })
+
+  if (packed.charAt(0) !== "R") return fail("Open this page from the Ads button in the bot's chat in Telegram.")
+  if (!window.DecompressionStream) return fail("Update Telegram to open this page, or ask the bot in the chat.")
+  Promise.resolve()
+    .then(() => decode(packed.slice(1)))
+    .then((d) => {
+      if (d.v !== 1) throw new Error(`unknown version ${d.v}`) // read older versions here when the format changes
+      D = d
+      const [y, m, day] = d.from.split("-").map(Number)
+      DAYS = Array.from({ length: d.days }, (_, i) => new Date(y, m - 1, day + i))
+      ADS = d.r.map((r, i) => ({ c: r[0], d: list(r[1]), e: list(r[2]), p: list(r[3]), t: r[4], g: r[5], i }))
+      state.f = everything()
+      if (nativeBack) tg.BackButton.onClick(back)
+      if (nativeMain) tg.MainButton.onClick(onMain)
+      render()
+    })
+    .catch((e) => fail(`This link couldn't be read (${e && e.message}). Send /start to the bot to renew it.`))
+})()
+</script>
+</body>
+</html>
