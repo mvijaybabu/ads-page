@@ -89,11 +89,13 @@ button { cursor: pointer; }
 .chead h2 { margin: 0; font-size: 18px; line-height: 1.3; }
 .chead .sub { font-size: 13px; margin-top: 6px; }
 .day { margin: 14px 4px 6px; font-size: 13px; font-weight: 650; color: var(--hint); text-transform: uppercase; letter-spacing: .02em; }
-.ad { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.ad { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px; border: 0; background: none; text-align: left; }
 .ad + .ad { border-top: 1px solid var(--line); }
 .ad > div { flex: 1; min-width: 0; }
 .ad .what { font-weight: 600; }
 .ad .where { font-size: 13px; color: var(--hint); margin-top: 2px; }
+.ad .sent { flex: none; font-size: 12px; font-weight: 600; color: var(--hint); }
+.pickhint { margin: 10px 4px 0; }
 .sendbar { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid var(--line); }
 .sendbar .primary { display: block; width: 100%; max-width: 656px; margin: 0 auto; }
 
@@ -116,8 +118,8 @@ button { cursor: pointer; }
 .tick { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 0; background: none; text-align: left; }
 .fsec .card .tick + .tick { border-top: 1px solid var(--line); }
 .box { flex: none; width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--line); display: grid; place-items: center; }
-.tick[aria-checked="true"] .box { background: var(--accent); border-color: var(--accent); }
-.tick[aria-checked="true"] .box::after { content: ""; width: 5px; height: 10px; border: solid var(--accent-text); border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
+[aria-checked="true"] > .box { background: var(--accent); border-color: var(--accent); }
+[aria-checked="true"] > .box::after { content: ""; width: 5px; height: 10px; border: solid var(--accent-text); border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
 .tick .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tick .n { color: var(--hint); font-size: 13px; }
 .sfoot { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px;
@@ -361,9 +363,20 @@ button { cursor: pointer; }
     window.scrollTo(0, state.listScroll)
   }
 
+  // A client's page: their ads by day, each with a tick box. Send to chat sends the ticked ones, MAX_SEND at most per
+  // request; ticks last per client while the page is open, and ads already requested from it say so (the page
+  // can't see the bot's answer, so it doesn't claim they arrived).
+  const MAX_SEND = 10 // page_bot.py's MAX_SEND
+  const picked = new Map() // client -> Set of ticked ads (their i: the row in the link)
+  const sent = new Set() // ads requested from this page
+  let sendButton = null // outside Telegram (in Telegram: its main button)
+
   function renderClient() {
     const x = clients().find((y) => y.c === state.client)
     if (!x) { state.client = null; return render() }
+    if (!picked.has(x.c)) picked.set(x.c, new Set())
+    const mine = picked.get(x.c)
+    for (const i of mine) if (!x.ads.some((a) => a.i === i)) mine.delete(i) // filtered out since
     if (!nativeBack) app.appendChild(button("back", "‹ All clients", closeClient))
     const head = el("div", "card chead")
     head.appendChild(el("h2", null, x.name))
@@ -371,72 +384,77 @@ button { cursor: pointer; }
     sub.appendChild(el("span", null, `${plural(x.ads.length, "ad")} · last ${long(dayOf(x.latest))}`))
     head.appendChild(sub)
     app.appendChild(head)
+    app.appendChild(el("p", "hint pickhint", `Tick up to ${MAX_SEND} ads to get their pages in the chat.`))
 
     // newest day first, then in the bot's order (biggest first); an ad that ran on several days shows under its
-    // latest one ticked. With no images to tell them apart, ads that read the same are one line with their number.
+    // latest one ticked
     let day = null
     let box = null
-    let lines = null
-    for (const ad of [...x.ads].sort((a, b) => b.day - a.day)) {
+    for (const ad of shownOrder(x)) {
       if (ad.day !== day) {
         day = ad.day
         const n = x.ads.filter((a) => a.day === day).length
         app.appendChild(el("div", "day", `${long(dayOf(day))} · ${plural(n, "ad")}`))
         box = el("div", "card")
         app.appendChild(box)
-        lines = new Map()
       }
-      const what = `${ad.p.map((p) => D.p[p]).join(", ")} · ${D.t[ad.t]}`
       const where = [ad.e.map((e) => D.e[e][1]).join(", "), D.g[ad.g]]
       const also = ad.d.filter((d) => d !== ad.day)
       if (also.length) where.push(`also ${also.map((d) => short(dayOf(d))).join(", ")}`)
-      const key = `${what}|${where.join("|")}`
-      const seen = lines.get(key)
-      if (seen) {
-        seen.n += 1
-        seen.count.textContent = `×${seen.n}`
-        seen.count.hidden = false
-        continue
-      }
-      const row = el("div", "ad")
+      const row = button("ad", null, () => {
+        if (mine.has(ad.i)) mine.delete(ad.i)
+        else if (mine.size >= MAX_SEND) return toast(`Up to ${MAX_SEND} pages per request: send these first, then tick more.`)
+        else mine.add(ad.i)
+        row.setAttribute("aria-checked", String(mine.has(ad.i)))
+        updateSend(x)
+      })
+      row.setAttribute("role", "checkbox")
+      row.setAttribute("aria-checked", String(mine.has(ad.i)))
+      row.dataset.i = ad.i
+      row.appendChild(el("span", "box"))
       const text = el("div")
-      text.appendChild(el("div", "what", what))
+      text.appendChild(el("div", "what", `${ad.p.map((p) => D.p[p]).join(", ")} · ${D.t[ad.t]}`))
       text.appendChild(el("div", "where", where.join(" · ")))
       row.appendChild(text)
-      const count = el("span", "count", "×1")
-      count.hidden = true
-      row.appendChild(count)
-      lines.set(key, { n: 1, count })
+      if (sent.has(ad.i)) row.appendChild(el("span", "sent", "Requested"))
       box.appendChild(row)
     }
 
-    const label = `Send ${plural(x.ads.length, "page")} to chat`
+    if (!nativeMain) {
+      const bar = el("div", "sendbar")
+      sendButton = button("primary", "", () => sendToChat(x))
+      bar.appendChild(sendButton)
+      app.appendChild(bar)
+    }
+    updateSend(x)
+  }
+  const shownOrder = (x) => [...x.ads].sort((a, b) => b.day - a.day) // stable: the bot's order within a day
+
+  function updateSend(x) {
+    const n = picked.get(x.c).size
+    const label = n ? `Send ${plural(n, "page")} to chat` : `Tick up to ${MAX_SEND} ads to send`
     if (nativeMain) {
       tg.MainButton.setText(label)
+      n ? tg.MainButton.enable() : tg.MainButton.disable()
       tg.MainButton.show()
-    } else {
-      const bar = el("div", "sendbar")
-      bar.appendChild(button("primary", label, () => sendToChat(x)))
-      app.appendChild(bar)
+    } else if (sendButton) {
+      sendButton.textContent = label
+      sendButton.disabled = !n
     }
   }
 
-  // Send to chat: the bot sends the client's pages (those shown, under these filters) to the person's chat. The page
-  // can't reach the bot or the image server itself, so it opens the bot's start link with a short key: this link's
-  // key, the client, and each filter's ticks as a base-36 bit mask ("" = all ticked); the bot finds them in what it
-  // put in the link (page_bot.py, START_KEY). Telegram then shows a Start button in the chat.
-  function startKey(x) {
-    const mask = (key) =>
-      state.f[key].size === options(key).length
-        ? ""
-        : options(key).reduce((m, i) => (state.f[key].has(i) ? m | (BigInt(1) << BigInt(i)) : m), BigInt(0)).toString(36)
-    return [D.k, x.c.toString(36), ...KINDS.map((k) => mask(k.key))].join("_")
-  }
+  // Send to chat: the bot sends the ticked ads' pages to the person's chat. The page can't reach the bot or the image
+  // server itself, so it opens the bot's start link with "s", this link's key and the ticked rows (base 36); the bot
+  // finds them in what it put in the link (page_bot.py, START_KEY). Telegram then shows a Start button in the chat.
   function sendToChat(x) {
-    const key = startKey(x)
-    if (key.length > 64) return toast("Too many filters ticked to send these. Tick fewer, or All, and try again.")
-    if (!inTelegram) return toast(`In Telegram, the bot sends these ${plural(x.ads.length, "page")} to your chat.`)
-    tg.openTelegramLink(`https://t.me/${D.bot}?start=${key}`)
+    const mine = picked.get(x.c)
+    const rows = shownOrder(x).filter((a) => mine.has(a.i)).map((a) => a.i)
+    if (!rows.length) return
+    if (!inTelegram) return toast(`In Telegram, the bot sends these ${plural(rows.length, "page")} to your chat.`)
+    tg.openTelegramLink(`https://t.me/${D.bot}?start=${["s" + D.k, ...rows.map((i) => i.toString(36))].join("_")}`)
+    rows.forEach((i) => sent.add(i))
+    mine.clear()
+    render()
     toast("Tap Start at the bottom of the chat to get them.")
   }
   function onMain() {
